@@ -9,17 +9,26 @@ export interface User {
   name: string;
 }
 
+export interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
+}
+
 interface AppState {
   user: User | null;
   token: string | null;
   serverUrl: string;
   isConnected: boolean;
   uptime: number | null;
+  toasts: Toast[];
   setAuth: (user: User, token: string) => void;
   clearAuth: () => void;
   setServerUrl: (url: string) => void;
   setConnected: (status: boolean) => void;
   setUptime: (time: number | null) => void;
+  showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning', duration?: number) => void;
+  removeToast: (id: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -30,6 +39,7 @@ export const useAppStore = create<AppState>()(
       serverUrl: getApiUrl(),
       isConnected: false,
       uptime: null,
+      toasts: [],
       setAuth: (user, token) => {
         localStorage.setItem('wap_auth_token', token);
         set({ user, token });
@@ -41,6 +51,22 @@ export const useAppStore = create<AppState>()(
       setServerUrl: (serverUrl) => set({ serverUrl }),
       setConnected: (isConnected) => set({ isConnected }),
       setUptime: (uptime) => set({ uptime }),
+      showToast: (message, type = 'success', duration = 3000) => {
+        const id = Math.random().toString(36).substring(2, 9);
+        set((state) => ({
+          toasts: [...state.toasts, { id, message, type }],
+        }));
+        setTimeout(() => {
+          set((state) => ({
+            toasts: state.toasts.filter((t) => t.id !== id),
+          }));
+        }, duration);
+      },
+      removeToast: (id) => {
+        set((state) => ({
+          toasts: state.toasts.filter((t) => t.id !== id),
+        }));
+      },
     }),
     {
       name: 'wap-intellysys-store',

@@ -24,7 +24,7 @@ export function LoginForm({ onSuccess }: LoginFormProps): JSX.Element {
   const [rememberMe, setRememberMe] = useState(true);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const { serverUrl, setServerUrl, isConnected } = useAppStore();
+  const { serverUrl, setServerUrl, isConnected, showToast } = useAppStore();
   const { login, loading, error: authError } = useAuth();
 
   const defaultUrl = getApiUrl();
@@ -71,6 +71,7 @@ export function LoginForm({ onSuccess }: LoginFormProps): JSX.Element {
     try {
       setServerUrl(data.serverUrl);
       await login(data.email, data.password, data.serverUrl);
+      showToast("Login successful!", "success");
       onSuccess();
     } catch (err) {
       console.error("Authentication failed:", err);

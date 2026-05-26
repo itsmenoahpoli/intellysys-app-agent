@@ -14,3 +14,4 @@ export { ActionPanel } from "./modules/dashboard/ActionPanel";
 
 export { SettingsHeader } from "./modules/settings/SettingsHeader";
 export { SettingsForm } from "./modules/settings/SettingsForm";
+export { Modal } from "./ui/Modal";

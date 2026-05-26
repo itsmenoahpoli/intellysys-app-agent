@@ -3,6 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Key, HelpCircle, EyeOff, Eye, Info } from "lucide-react";
+import { api } from "@renderer/utils/api";
+import { useAppStore } from "@renderer/store/useAppStore";
 
 interface SetupLicenseStepProps {
   licenseKey: string;
@@ -28,7 +30,10 @@ export function SetupLicenseStep({
   formatLicenseKey,
   onValidSubmit,
 }: SetupLicenseStepProps): JSX.Element {
+  const { serverUrl, showToast } = useAppStore();
   const [showKey, setShowKey] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const {
     register,
@@ -42,9 +47,52 @@ export function SetupLicenseStep({
     },
   });
 
-  const onSubmit = (data: LicenseSchemaType) => {
-    setLicenseKey(data.licenseKey);
-    onValidSubmit();
+  const onSubmit = async (data: LicenseSchemaType) => {
+    setIsValidating(true);
+    setValidationError(null);
+    try {
+      const response = await api.get<{
+        id: string;
+        status: string;
+        expiry?: string;
+        expiresAt?: string;
+        expires?: string;
+      }>(`/license-keys/${data.licenseKey}`, {
+        customBaseUrl: serverUrl,
+      });
+
+      if (!response) {
+        throw new Error("No response received from the server");
+      }
+
+      if (response.status !== "unused") {
+        throw new Error(`License key is ${response.status || "invalid"} (must be unused)`);
+      }
+
+      const expiryDateStr = response.expiry || response.expiresAt || response.expires;
+      if (!expiryDateStr) {
+        throw new Error("License response is missing expiry date");
+      }
+
+      const expiryDate = new Date(expiryDateStr);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      if (expiryDate.getTime() <= todayStart.getTime()) {
+        throw new Error("License key has expired");
+      }
+
+      setLicenseKey(data.licenseKey);
+      showToast("License key verified successfully!", "success");
+      onValidSubmit();
+    } catch (err: any) {
+      console.error("License key validation failed:", err);
+      const message = err.message || "Failed to verify license key. Please check your server connection.";
+      setValidationError(message);
+      showToast(message, "error");
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   return (
@@ -72,30 +120,42 @@ export function SetupLicenseStep({
         </div>
 
         <div className="relative flex items-center">
-          <Key className="absolute left-3.5 h-4 w-4 text-wap-text-secondary" />
+          {isValidating ? (
+            <div className="absolute left-3.5 animate-spin h-4 w-4 border-2 border-wap-blue border-t-transparent rounded-full" />
+          ) : (
+            <Key className="absolute left-3.5 h-4 w-4 text-wap-text-secondary" />
+          )}
           <input
             type={showKey ? "text" : "password"}
+            disabled={isValidating}
             {...register("licenseKey")}
             onChange={(e) => {
               const formatted = formatLicenseKey(e.target.value);
               setValue("licenseKey", formatted, { shouldValidate: true });
+              setValidationError(null);
             }}
             className={`w-full bg-wap-input border focus:border-wap-input-focus outline-none rounded-lg pl-10 pr-10 py-3 text-xs text-white placeholder-wap-text-muted font-mono tracking-wider transition-colors duration-150 ${
-              errors.licenseKey ? "border-rose-500/80 focus:border-rose-500/80" : "border-wap-input-border"
+              errors.licenseKey || validationError ? "border-rose-500/80 focus:border-rose-500/80" : "border-wap-input-border"
             }`}
             placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
           />
           <button
             type="button"
+            disabled={isValidating}
             onClick={() => setShowKey(!showKey)}
-            className="absolute right-3.5 text-wap-text-secondary hover:text-white transition-colors focus:outline-none"
+            className="absolute right-3.5 text-wap-text-secondary hover:text-white transition-colors focus:outline-none disabled:opacity-50"
           >
             {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
         {errors.licenseKey && (
-          <p className="text-[10px] text-rose-400 font-semibold mt-1">
+          <p className="text-[10px] text-rose-400 font-semibold mt-1 animate-fadeIn">
             {errors.licenseKey.message}
+          </p>
+        )}
+        {validationError && (
+          <p className="text-[10px] text-rose-400 font-semibold mt-1 animate-fadeIn">
+            {validationError}
           </p>
         )}
       </div>

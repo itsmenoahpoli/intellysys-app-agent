@@ -16,7 +16,7 @@ export function useAgent(serverUrl?: string) {
     queryKey: ['healthcheck', serverUrl],
     queryFn: async () => {
       if (!serverUrl) throw new Error('No server URL');
-      return await api.get<HealthCheckResponse>('/healthcheck', {
+      return await api.get<HealthCheckResponse>('/health', {
         customBaseUrl: serverUrl,
       });
     },
@@ -42,7 +42,7 @@ export function useAgent(serverUrl?: string) {
         const res = await queryClient.fetchQuery({
           queryKey: ['healthcheck', customUrl],
           queryFn: async () => {
-            return await api.get<HealthCheckResponse>('/healthcheck', {
+            return await api.get<HealthCheckResponse>('/health', {
               customBaseUrl: customUrl,
             });
           },
