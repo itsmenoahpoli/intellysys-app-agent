@@ -1,0 +1,36 @@
+:root {
+  /* WAP Intellysys Design Tokens - Reusable Theme Variables */
+  --wap-bg-dark: #050a12;
+  --wap-bg-gradient-start: #0a172c;
+  --wap-bg-gradient-end: #050a12;
+
+  /* Card and Panel Styles */
+  --wap-card-bg: rgba(9, 18, 32, 0.65);
+  --wap-card-border: rgba(30, 41, 59, 0.5);
+
+  /* Brand Blue Colors */
+  --wap-blue-500: #0d6efd;
+  --wap-blue-600: #0b57d0;
+  --wap-blue-700: #0842a0;
+
+  /* Accent Highlight Colors */
+  --wap-green-500: #10b981;
+  --wap-sky-500: #0ea5e9;
+  --wap-purple-500: #c084fc;
+  --wap-amber-500: #f59e0b;
+
+  /* Form and Input Elements */
+  --wap-input-bg: #09111e;
+  --wap-input-border: #132237;
+  --wap-input-focus: #0d6efd;
+
+  /* Typography / Text Palette */
+  --wap-text-primary: #f8fafc;
+  --wap-text-secondary: #94a3b8;
+  --wap-text-muted: #475569;
+  --wap-text-highlight: #38bdf8;
+
+  /* Footers / Status Bars */
+  --wap-status-bar-bg: #03070d;
+  --wap-status-bar-border: rgba(30, 41, 59, 0.3);
+}

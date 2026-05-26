@@ -1,0 +1,66 @@
+@import "./theme.css";
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* WAP Custom Colors linked to CSS variables in theme.css */
+  --color-wap-bg: var(--wap-bg-dark);
+  --color-wap-bg-start: var(--wap-bg-gradient-start);
+  --color-wap-bg-end: var(--wap-bg-gradient-end);
+
+  --color-wap-card: var(--wap-card-bg);
+  --color-wap-card-border: var(--wap-card-border);
+
+  --color-wap-blue: var(--wap-blue-500);
+  --color-wap-blue-hover: var(--wap-blue-600);
+  --color-wap-blue-dark: var(--wap-blue-700);
+
+  --color-wap-green: var(--wap-green-500);
+  --color-wap-sky: var(--wap-sky-500);
+  --color-wap-purple: var(--wap-purple-500);
+  --color-wap-amber: var(--wap-amber-500);
+
+  --color-wap-input: var(--wap-input-bg);
+  --color-wap-input-border: var(--wap-input-border);
+  --color-wap-input-focus: var(--wap-input-focus);
+
+  --color-wap-text: var(--wap-text-primary);
+  --color-wap-text-secondary: var(--wap-text-secondary);
+  --color-wap-text-muted: var(--wap-text-muted);
+  --color-wap-text-highlight: var(--wap-text-highlight);
+
+  --color-wap-status-bg: var(--wap-status-bar-bg);
+  --color-wap-status-border: var(--wap-status-bar-border);
+}
+
+/* Custom Scrollbar Styles for consistent premium look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(5, 10, 18, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(13, 110, 253, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(13, 110, 253, 0.4);
+}
+
+/* Electron Window Drag Utilities */
+.titlebar-drag {
+  -webkit-app-region: drag;
+}
+
+.titlebar-no-drag {
+  -webkit-app-region: no-drag;
+}
