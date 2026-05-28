@@ -19,12 +19,18 @@ interface AppState {
   user: User | null;
   token: string | null;
   serverUrl: string;
+  agentIdentifier: string | null;
+  licenseKey: string | null;
+  setupStep: number;
   isConnected: boolean;
   uptime: number | null;
   toasts: Toast[];
   setAuth: (user: User, token: string) => void;
   clearAuth: () => void;
   setServerUrl: (url: string) => void;
+  setAgentIdentifier: (value: string) => void;
+  setLicenseKey: (value: string | null) => void;
+  setSetupStep: (value: number) => void;
   setConnected: (status: boolean) => void;
   setUptime: (time: number | null) => void;
   showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning', duration?: number) => void;
@@ -37,6 +43,9 @@ export const useAppStore = create<AppState>()(
       user: null,
       token: null,
       serverUrl: getApiUrl(),
+      agentIdentifier: null,
+      licenseKey: null,
+      setupStep: 3,
       isConnected: false,
       uptime: null,
       toasts: [],
@@ -49,6 +58,9 @@ export const useAppStore = create<AppState>()(
         set({ user: null, token: null });
       },
       setServerUrl: (serverUrl) => set({ serverUrl }),
+      setAgentIdentifier: (agentIdentifier) => set({ agentIdentifier }),
+      setLicenseKey: (licenseKey) => set({ licenseKey }),
+      setSetupStep: (setupStep) => set({ setupStep }),
       setConnected: (isConnected) => set({ isConnected }),
       setUptime: (uptime) => set({ uptime }),
       showToast: (message, type = 'success', duration = 3000) => {
@@ -73,6 +85,9 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         user: state.user,
         token: state.token,
+        agentIdentifier: state.agentIdentifier,
+        licenseKey: state.licenseKey,
+        setupStep: state.setupStep,
       }),
     }
   )

@@ -2,8 +2,23 @@ import { app, shell, BrowserWindow, ipcMain, screen } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import os from "os";
+import { createHash } from "crypto";
 
 let mainWindow: BrowserWindow | null = null;
+
+function getPrimaryNetworkInfo(): { interfaceName: string; ipAddress: string } {
+  const interfaces = os.networkInterfaces();
+  for (const [name, addresses] of Object.entries(interfaces)) {
+    if (!addresses) continue;
+    for (const address of addresses) {
+      const isIpv4 = address.family === "IPv4" || address.family === 4;
+      if (isIpv4 && !address.internal) {
+        return { interfaceName: name, ipAddress: address.address };
+      }
+    }
+  }
+  return { interfaceName: "unknown", ipAddress: "unavailable" };
+}
 
 function createWindow(): void {
   // Create the browser window with custom options for a premium, frameless experience
@@ -81,6 +96,7 @@ ipcMain.handle("get-system-metrics", async () => {
 
   // App specific process memory
   const processMem = process.memoryUsage().heapUsed;
+  const networkInfo = getPrimaryNetworkInfo();
 
   return {
     cpuModel,
@@ -95,6 +111,26 @@ ipcMain.handle("get-system-metrics", async () => {
     nodeVersion: process.version,
     chromeVersion: process.versions.chrome,
     electronVersion: process.versions.electron,
+    hostname: os.hostname(),
+    networkInterface: networkInfo.interfaceName,
+    ipAddress: networkInfo.ipAddress,
+  };
+});
+
+ipcMain.handle("get-agent-identity", async () => {
+  const hostname = os.hostname();
+  const platform = process.platform;
+  const arch = process.arch;
+  const userDataPath = app.getPath("userData");
+  const raw = `${hostname}:${platform}:${arch}:${userDataPath}`;
+  const fingerprint = createHash("sha256").update(raw).digest("hex").slice(0, 16);
+
+  return {
+    identifier: `agent-${fingerprint}`,
+    hostname,
+    platform,
+    arch,
+    appVersion: app.getVersion(),
   };
 });
 

@@ -13,6 +13,9 @@ export interface SystemMetrics {
   nodeVersion: string
   chromeVersion: string
   electronVersion: string
+  hostname: string
+  networkInterface: string
+  ipAddress: string
 }
 
 declare global {
@@ -27,6 +30,15 @@ declare global {
       }
       metrics: {
         get: () => Promise<SystemMetrics>
+      }
+      identity: {
+        get: () => Promise<{
+          identifier: string
+          hostname: string
+          platform: string
+          arch: string
+          appVersion: string
+        }>
       }
     }
   }

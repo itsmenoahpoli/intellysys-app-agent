@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Info, ExternalLink } from 'lucide-react';
+import { useAppStore } from '@renderer/store/useAppStore';
+import { getAgentIdentity, registerAgent } from '@renderer/services/agent-registration';
 import {
   SetupHeader,
   SetupStepper,
@@ -12,9 +14,29 @@ import {
 
 export default function SetupView(): JSX.Element {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(3);
-  const [licenseKey, setLicenseKey] = useState('');
+  const {
+    serverUrl,
+    showToast,
+    setAgentIdentifier,
+    setupStep,
+    setSetupStep,
+    licenseKey: storedLicenseKey,
+    setLicenseKey: setStoredLicenseKey,
+  } = useAppStore();
+  const currentStep = setupStep;
+  const licenseKey = storedLicenseKey || '';
   const [activeTab, setActiveTab] = useState('Installation');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isLicenseStepValid, setIsLicenseStepValid] = useState(false);
+  const [isLicenseStepChecking, setIsLicenseStepChecking] = useState(false);
+
+  const handleLicenseValidationStateChange = useCallback(
+    ({ isValid, isChecking }: { isValid: boolean; isChecking: boolean }) => {
+      setIsLicenseStepValid(isValid);
+      setIsLicenseStepChecking(isChecking);
+    },
+    []
+  );
 
   const formatLicenseKey = (value: string): string => {
     const cleaned = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
@@ -23,17 +45,40 @@ export default function SetupView(): JSX.Element {
     return matches ? matches.join('-') : truncated;
   };
 
-  const handleNext = () => {
-    if (currentStep < 5) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      navigate('/dashboard');
+  const handleNext = async () => {
+    if (currentStep === 4) {
+      if (!licenseKey) {
+        showToast('Please validate a license key first', 'error');
+        return;
+      }
+
+      setIsRegistering(true);
+      try {
+        const identity = await getAgentIdentity();
+        await registerAgent({
+          serverUrl,
+          licenseCode: licenseKey,
+          identity,
+        });
+        setAgentIdentifier(identity.identifier);
+      } catch (err: any) {
+        showToast(err?.message || 'Failed to register agent app', 'error');
+        setIsRegistering(false);
+        return;
+      }
+      setIsRegistering(false);
     }
+
+    if (currentStep < 5) {
+      setSetupStep(currentStep + 1);
+      return;
+    }
+    navigate('/dashboard');
   };
 
   const handleBack = () => {
     if (currentStep > 3) {
-      setCurrentStep(currentStep - 1);
+      setSetupStep(currentStep - 1);
     }
   };
 
@@ -66,9 +111,10 @@ export default function SetupView(): JSX.Element {
               {currentStep === 3 && (
                 <SetupLicenseStep
                   licenseKey={licenseKey}
-                  setLicenseKey={setLicenseKey}
+                  setLicenseKey={(value) => setStoredLicenseKey(value)}
                   formatLicenseKey={formatLicenseKey}
                   onValidSubmit={handleNext}
+                  onValidationStateChange={handleLicenseValidationStateChange}
                 />
               )}
 
@@ -91,16 +137,27 @@ export default function SetupView(): JSX.Element {
               <button
                 type={currentStep === 3 ? 'submit' : 'button'}
                 form={currentStep === 3 ? 'license-form' : undefined}
-                onClick={currentStep !== 3 ? handleNext : undefined}
-                className="px-6 py-2.5 rounded-lg bg-wap-blue hover:bg-wap-blue-hover text-xs text-white font-bold shadow-lg shadow-wap-blue/20 transition-all duration-150 cursor-pointer"
+                onClick={currentStep !== 3 ? () => void handleNext() : undefined}
+                disabled={
+                  isRegistering ||
+                  (currentStep === 3 &&
+                    (!licenseKey.trim() || !isLicenseStepValid || isLicenseStepChecking))
+                }
+                className="px-6 py-2.5 rounded-lg bg-wap-blue hover:bg-wap-blue-hover disabled:bg-wap-blue/40 disabled:text-white/70 text-xs text-white font-bold shadow-lg shadow-wap-blue/20 disabled:shadow-none transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
               >
-                {currentStep === 5 ? 'Finish' : 'Next'}
+                {isRegistering
+                  ? 'Saving...'
+                  : currentStep === 3 && isLicenseStepChecking
+                    ? 'Validating...'
+                    : currentStep === 5
+                      ? 'Finish'
+                      : 'Next'}
               </button>
             </div>
 
             <div className="border-t border-wap-card-border/50 pt-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-start gap-2.5 text-[11px] text-wap-text-secondary leading-relaxed max-w-xl">
-                <Info className="h-4.5 w-4.5 text-wap-blue flex-shrink-0 mt-0.5" />
+                <Info className="h-4.5 w-4.5 text-wap-blue shrink-0 mt-0.5" />
                 <span>
                   After installation, the agent will automatically connect to your server. Make sure outbound connection to app.wapintellysys.com on port 443 is allowed.
                 </span>

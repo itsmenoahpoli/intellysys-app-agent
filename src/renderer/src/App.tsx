@@ -23,6 +23,7 @@ import { Modal } from "@components";
 import { useAuth } from "@renderer/services/auth";
 import { useAgent } from "@renderer/services/agent";
 import { useAppStore, Toast } from "@renderer/store/useAppStore";
+import { heartbeatAgent } from "@renderer/services/agent-registration";
 import LoginView from "@renderer/views/LoginView";
 import SetupView from "@renderer/views/SetupView";
 import DashboardView from "@renderer/views/DashboardView";
@@ -79,7 +80,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }): J
       className={`flex items-center justify-between w-80 backdrop-blur-md border rounded-xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-slideInRight pointer-events-auto transition-all duration-300 hover:scale-[1.02] ${styles.bg}`}
     >
       <div className="flex items-center gap-3.5">
-        <div className="flex-shrink-0">{styles.icon}</div>
+        <div className="shrink-0">{styles.icon}</div>
         <div className="flex flex-col">
           <span className={`text-xs font-semibold leading-snug ${styles.text}`}>
             {toast.message}
@@ -88,7 +89,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }): J
       </div>
       <button
         onClick={onClose}
-        className={`flex-shrink-0 ml-3 transition-colors p-1 rounded-lg cursor-pointer focus:outline-none ${styles.closeBtn}`}
+        className={`shrink-0 ml-3 transition-colors p-1 rounded-lg cursor-pointer focus:outline-none ${styles.closeBtn}`}
       >
         <X className="h-3.5 w-3.5" />
       </button>
@@ -97,7 +98,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }): J
 }
 
 function MainLayout(): JSX.Element {
-  const { serverUrl, toasts, removeToast, showToast } = useAppStore();
+  const { serverUrl, agentIdentifier, toasts, removeToast, showToast } = useAppStore();
   const { user, isLoggedIn, logout } = useAuth();
   const { isConnected, isChecking } = useAgent(serverUrl);
   const location = useLocation();
@@ -126,13 +127,33 @@ function MainLayout(): JSX.Element {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isLoggedIn || !agentIdentifier || !serverUrl) {
+      return;
+    }
+
+    const sendHeartbeat = async () => {
+      try {
+        await heartbeatAgent({ serverUrl, identifier: agentIdentifier });
+      } catch {
+      }
+    };
+
+    void sendHeartbeat();
+    const timer = window.setInterval(() => {
+      void sendHeartbeat();
+    }, 30_000);
+
+    return () => window.clearInterval(timer);
+  }, [isLoggedIn, agentIdentifier, serverUrl]);
+
   return (
     <div className="relative flex flex-1 flex-col h-screen overflow-hidden bg-wap-bg text-wap-text select-none font-sans">
       <div className="absolute top-[-20%] left-[-10%] h-[60%] w-[50%] rounded-full bg-wap-blue/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] h-[50%] w-[45%] rounded-full bg-wap-sky/10 blur-[130px] pointer-events-none" />
 
       {/* Toast Container */}
-      <div className="absolute top-16 right-6 z-[9999] flex flex-col gap-3 pointer-events-none max-w-sm w-full">
+      <div className="absolute top-16 right-6 z-9999 flex flex-col gap-3 pointer-events-none max-w-sm w-full">
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
         ))}
@@ -255,7 +276,7 @@ function MainLayout(): JSX.Element {
                     )}
                   </button>
 
-                  <div className="h-[1px] bg-slate-800/80 my-1" />
+                  <div className="h-px bg-slate-800/80 my-1" />
 
                   <button
                     onClick={() => {

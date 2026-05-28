@@ -15,6 +15,9 @@ export interface SystemMetrics {
   nodeVersion: string
   chromeVersion: string
   electronVersion: string
+  hostname: string
+  networkInterface: string
+  ipAddress: string
 }
 
 // Custom APIs for the renderer
@@ -29,13 +32,24 @@ const metricsAPI = {
   get: (): Promise<SystemMetrics> => ipcRenderer.invoke('get-system-metrics')
 }
 
+const identityAPI = {
+  get: (): Promise<{
+    identifier: string
+    hostname: string
+    platform: string
+    arch: string
+    appVersion: string
+  }> => ipcRenderer.invoke('get-agent-identity')
+}
+
 // Expose APIs if context isolation is enabled
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', {
       window: windowAPI,
-      metrics: metricsAPI
+      metrics: metricsAPI,
+      identity: identityAPI
     })
   } catch (error) {
     console.error('Error exposing APIs in preload:', error)
@@ -46,6 +60,7 @@ if (process.contextIsolated) {
   // @ts-ignore
   window.api = {
     window: windowAPI,
-    metrics: metricsAPI
+    metrics: metricsAPI,
+    identity: identityAPI
   }
 }

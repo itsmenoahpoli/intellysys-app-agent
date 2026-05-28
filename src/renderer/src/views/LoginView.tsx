@@ -1,11 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { LoginHeader, LoginForm } from "@components";
+import { useAppStore } from "@renderer/store/useAppStore";
 
 export default function LoginView(): JSX.Element {
   const navigate = useNavigate();
+  const { setupStep } = useAppStore();
 
   const handleSuccess = () => {
-    navigate("/setup");
+    navigate(setupStep >= 5 ? "/dashboard" : "/setup");
   };
 
   return (
