@@ -3,7 +3,11 @@ import { Cpu, HardDrive, Info, Network, RefreshCw, Server } from "lucide-react";
 
 type MetricsState = SystemMetrics | null;
 
-export function SetupConfigureStep(): JSX.Element {
+interface SetupConfigureStepProps {
+  onMetricsChange?: (metrics: MetricsState) => void;
+}
+
+export function SetupConfigureStep({ onMetricsChange }: SetupConfigureStepProps): JSX.Element {
   const [metrics, setMetrics] = useState<MetricsState>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -16,9 +20,11 @@ export function SetupConfigureStep(): JSX.Element {
         new Promise((resolve) => window.setTimeout(resolve, 1000)),
       ]);
       setMetrics(value);
+      onMetricsChange?.(value);
       setLoadError(null);
     } catch {
       setLoadError("Unable to collect some device details");
+      onMetricsChange?.(null);
     } finally {
       setLoading(false);
     }

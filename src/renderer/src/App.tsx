@@ -16,6 +16,7 @@ import {
   CreditCard,
   LogOut,
   ChevronUp,
+  KeyRound,
 } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import TitleBar from "@components/TitleBar";
@@ -23,7 +24,8 @@ import { Modal } from "@components";
 import { useAuth } from "@renderer/services/auth";
 import { useAgent } from "@renderer/services/agent";
 import { useAppStore, Toast } from "@renderer/store/useAppStore";
-import { heartbeatAgent } from "@renderer/services/agent-registration";
+import { api } from "@renderer/utils/api";
+import { getAgentIdentity, heartbeatAgent, registerAgent } from "@renderer/services/agent-registration";
 import LoginView from "@renderer/views/LoginView";
 import SetupView from "@renderer/views/SetupView";
 import DashboardView from "@renderer/views/DashboardView";
@@ -98,7 +100,8 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }): J
 }
 
 function MainLayout(): JSX.Element {
-  const { serverUrl, agentIdentifier, toasts, removeToast, showToast } = useAppStore();
+  const { serverUrl, agentIdentifier, licenseKey, toasts, removeToast, showToast, setLicenseKey } =
+    useAppStore();
   const { user, isLoggedIn, logout } = useAuth();
   const { isConnected, isChecking } = useAgent(serverUrl);
   const location = useLocation();
@@ -106,6 +109,11 @@ function MainLayout(): JSX.Element {
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLicenseRevokedModalOpen, setIsLicenseRevokedModalOpen] = useState(false);
+  const [newLicenseKey, setNewLicenseKey] = useState("");
+  const [isUpdatingLicense, setIsUpdatingLicense] = useState(false);
+  const [licenseUpdateError, setLicenseUpdateError] = useState<string | null>(null);
+  const [lastCheckedToken, setLastCheckedToken] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -128,6 +136,41 @@ function MainLayout(): JSX.Element {
   }, []);
 
   useEffect(() => {
+    const checkLicenseStatus = async () => {
+      if (!isLoggedIn || !licenseKey || !serverUrl || !user) {
+        return;
+      }
+
+      // Only check once per authenticated session.
+      if (lastCheckedToken === `${user.id}:${licenseKey}`) {
+        return;
+      }
+
+      try {
+        const response = await api.get<{
+          success: boolean;
+          data?: {
+            status: string;
+          };
+        }>(`/license-keys/${licenseKey}`, {
+          customBaseUrl: serverUrl,
+        });
+
+        setLastCheckedToken(`${user.id}:${licenseKey}`);
+        if (response?.data?.status === "revoked") {
+          setLicenseUpdateError(null);
+          setNewLicenseKey("");
+          setIsLicenseRevokedModalOpen(true);
+        }
+      } catch {
+        // Keep login flow uninterrupted if status check fails.
+      }
+    };
+
+    void checkLicenseStatus();
+  }, [isLoggedIn, lastCheckedToken, licenseKey, serverUrl, user]);
+
+  useEffect(() => {
     if (!isLoggedIn || !agentIdentifier || !serverUrl) {
       return;
     }
@@ -146,6 +189,61 @@ function MainLayout(): JSX.Element {
 
     return () => window.clearInterval(timer);
   }, [isLoggedIn, agentIdentifier, serverUrl]);
+
+  const formatLicenseKey = (value: string) =>
+    value
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 32)
+      .replace(/(.{4})/g, "$1-")
+      .replace(/-$/, "");
+
+  const isNewLicenseKeyFormatValid =
+    /^[A-Z0-9]{4}(?:-[A-Z0-9]{4}){7}$/.test(newLicenseKey);
+
+  const handleSubmitNewLicenseKey = async () => {
+    if (!isNewLicenseKeyFormatValid) {
+      setLicenseUpdateError("Please enter a valid license key in XXXX-XXXX format.");
+      return;
+    }
+
+    setIsUpdatingLicense(true);
+    setLicenseUpdateError(null);
+    try {
+      const validateResponse = await api.post<{
+        success: boolean;
+        data?: { status: string };
+      }>(
+        "/license-keys/validate",
+        { code: newLicenseKey },
+        {
+          customBaseUrl: serverUrl,
+        },
+      );
+
+      if (validateResponse?.data?.status !== "used") {
+        throw new Error("License key could not be validated.");
+      }
+
+      const identity = await getAgentIdentity();
+      await registerAgent({
+        serverUrl,
+        licenseCode: newLicenseKey,
+        identity,
+      });
+
+      setLicenseKey(newLicenseKey);
+      setLastCheckedToken(null);
+      setIsLicenseRevokedModalOpen(false);
+      showToast("New license key activated.", "success");
+    } catch (err: any) {
+      setLicenseUpdateError(
+        err?.message || "Failed to activate the new license key. Please try again.",
+      );
+    } finally {
+      setIsUpdatingLicense(false);
+    }
+  };
 
   return (
     <div className="relative flex flex-1 flex-col h-screen overflow-hidden bg-wap-bg text-wap-text select-none font-sans">
@@ -350,6 +448,67 @@ function MainLayout(): JSX.Element {
             className="flex-1 px-4 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs text-white font-bold shadow-lg shadow-rose-600/20 hover:shadow-rose-600/30 transition-all duration-150 cursor-pointer focus:outline-none"
           >
             Sign Out
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isLicenseRevokedModalOpen}
+        onClose={() => {}}
+        dismissible={false}
+        title="License Key Revoked"
+        borderAccentClass="bg-amber-500"
+        maxWidthClass="max-w-md"
+      >
+        <div className="h-12 w-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4">
+          <KeyRound className="h-6 w-6" />
+        </div>
+
+        <p className="text-xs text-wap-text-secondary leading-relaxed mb-5">
+          Your current license key has been revoked. Enter a new license key to continue using the app.
+          This prompt can only be cleared by activating a new key or logging out.
+        </p>
+
+        <div className="w-full space-y-2 mb-5">
+          <label className="block text-[11px] font-semibold text-wap-text-secondary tracking-wider uppercase text-left">
+            New License Key
+          </label>
+          <input
+            type="text"
+            value={newLicenseKey}
+            disabled={isUpdatingLicense}
+            onChange={(event) => {
+              setNewLicenseKey(formatLicenseKey(event.target.value));
+              setLicenseUpdateError(null);
+            }}
+            className="w-full bg-wap-input border border-wap-input-border focus:border-wap-blue outline-none rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-wap-text-muted font-mono tracking-wider transition-colors duration-150"
+            placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+          />
+          {licenseUpdateError && (
+            <p className="text-[10px] text-rose-300 font-semibold text-left">{licenseUpdateError}</p>
+          )}
+        </div>
+
+        <div className="flex w-full gap-3">
+          <button
+            onClick={() => {
+              logout();
+              setIsLicenseRevokedModalOpen(false);
+              setLicenseUpdateError(null);
+              setNewLicenseKey("");
+              showToast("Logged out successfully", "info");
+              navigate("/");
+            }}
+            className="flex-1 px-4 py-2.5 rounded-lg border border-slate-800 hover:bg-slate-800/40 text-xs text-slate-300 font-bold transition-all duration-150 cursor-pointer focus:outline-none"
+          >
+            Log Out
+          </button>
+          <button
+            disabled={isUpdatingLicense}
+            onClick={() => void handleSubmitNewLicenseKey()}
+            className="flex-1 px-4 py-2.5 rounded-lg bg-wap-blue hover:bg-wap-blue-hover disabled:bg-wap-blue/50 text-xs text-white font-bold transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
+          >
+            {isUpdatingLicense ? "Activating..." : "Activate"}
           </button>
         </div>
       </Modal>

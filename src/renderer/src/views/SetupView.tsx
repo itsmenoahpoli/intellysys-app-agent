@@ -29,6 +29,7 @@ export default function SetupView(): JSX.Element {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLicenseStepValid, setIsLicenseStepValid] = useState(false);
   const [isLicenseStepChecking, setIsLicenseStepChecking] = useState(false);
+  const [configureMetrics, setConfigureMetrics] = useState<SystemMetrics | null>(null);
 
   const handleLicenseValidationStateChange = useCallback(
     ({ isValid, isChecking }: { isValid: boolean; isChecking: boolean }) => {
@@ -46,7 +47,7 @@ export default function SetupView(): JSX.Element {
   };
 
   const handleNext = async () => {
-    if (currentStep === 4) {
+    if (currentStep === 5) {
       if (!licenseKey) {
         showToast('Please validate a license key first', 'error');
         return;
@@ -67,13 +68,14 @@ export default function SetupView(): JSX.Element {
         return;
       }
       setIsRegistering(false);
+      navigate('/dashboard');
+      return;
     }
 
     if (currentStep < 5) {
       setSetupStep(currentStep + 1);
       return;
     }
-    navigate('/dashboard');
   };
 
   const handleBack = () => {
@@ -118,9 +120,15 @@ export default function SetupView(): JSX.Element {
                 />
               )}
 
-              {currentStep === 4 && <SetupConfigureStep />}
+              {currentStep === 4 && <SetupConfigureStep onMetricsChange={setConfigureMetrics} />}
 
-              {currentStep === 5 && <SetupCompleteStep />}
+              {currentStep === 5 && (
+                <SetupCompleteStep
+                  licenseKey={licenseKey}
+                  serverUrl={serverUrl}
+                  metrics={configureMetrics}
+                />
+              )}
             </div>
           </div>
 
@@ -150,7 +158,7 @@ export default function SetupView(): JSX.Element {
                   : currentStep === 3 && isLicenseStepChecking
                     ? 'Validating...'
                     : currentStep === 5
-                      ? 'Finish'
+                      ? 'Confirm & Launch'
                       : 'Next'}
               </button>
             </div>
